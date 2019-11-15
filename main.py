@@ -1,59 +1,17 @@
 import sys
 from arg_parser import ArgParameter, ArgFlag, arg_parser
-from pydub import AudioSegment
+from pydub import AudioSegment, playback
 import numpy as np
-import matplotlib.pyplot as plt
-from scipy.signal import spectrogram
+from audio_helpers import *
+from plot_audio import *
+
 
 
 # https://americodias.com/docs/python/audio_python.md
 # https://ipython-books.github.io/116-applying-digital-filters-to-speech-sounds/
 
-def sec_to_msec(v):
-    return float(v) * 1000
 
 
-def load_audio_file(input_file_path, start_time=-1, end_time=-1):
-    sound = AudioSegment.from_file(file=input_file_path)
-    channels = sound.channels
-
-    if start_time < 0:
-        start_time = 0
-
-    if end_time < 0:
-        end_time = sec_to_msec(sound.duration_seconds)
-
-    sound = sound[start_time:end_time]
-
-    print(f'Sound duration: {sound.duration_seconds:.2f}')
-
-    samples = np.array(sound.get_array_of_samples(), dtype=np.int16)
-    samples = samples.reshape((int(sound.frame_count()), channels))
-
-    return samples, sound.frame_rate
-
-
-def convert_to_mono(samples):
-    return np.mean(samples, axis=1)
-
-
-def plot_audio_samples(samples, sampleRate, tStart=None, tEnd=None, title='Audio'):
-    if not tStart:
-        tStart = 0
-
-    if not tEnd or tStart > tEnd:
-        tEnd = len(samples) / sampleRate
-
-    f, axarr = plt.subplots(2, sharex=True, figsize=(20, 10))
-    axarr[0].set_title(title)
-    axarr[0].plot(np.linspace(tStart, tEnd, len(samples)), samples)
-    axarr[1].specgram(samples, Fs=sampleRate, NFFT=1024, noverlap=192, cmap='nipy_spectral', xextent=(tStart, tEnd))
-
-    axarr[0].set_ylabel('Amplitude')
-    axarr[1].set_ylabel('Frequency [Hz]')
-    plt.xlabel('Time [sec]')
-
-    plt.show()
 
 
 def main(config):
@@ -61,17 +19,56 @@ def main(config):
     start_time = sec_to_msec(config['start'])
     end_time = sec_to_msec(config['end'])
 
-    samples, sample_rate = load_audio_file(input_file_path, start_time, end_time)
-    mono = convert_to_mono(samples)
+    sound = load_audio_file(input_file_path, start_time, end_time)
+    sound = sound.set_channels(1)
+
+    samples = audio_segment_to_numpy(sound)
 
     if config['plot']:
-        plot_audio_samples(mono, sample_rate)
-        print(f'Total samples: {mono.shape[0]}')
-        print(f'Min value = {np.min(mono)}, max value = {np.max(mono)}')
+        plot_audio_samples(samples, sound.frame_rate)
+        print(f'Total samples: {samples.shape[0]}')
+        print(f'Min value = {np.min(samples)}, max value = {np.max(samples)}')
 
-    f, t, Sxx = spectrogram(mono, sample_rate)
+    bass_high_fs = 500.0  # sample rate, Hz
+    bass_low_fs = 16.0
+    bass_low_order = 6
+    cutoff = 3.667
+
+    mono_lowpassed = butter_lowpass_filter(samples, cutoff, bass_high_fs, bass_low_order)
+
+    f, t, Sxx = spectrogram(mono_lowpassed, sound.frame_rate, nfft=5000)
+
+    freq_slice = np.where((f >= bass_low_fs) & (f <= bass_high_fs))
+
+    f = f[freq_slice]
+    Sxx = Sxx[freq_slice, :][0]
 
     print(f)
+    print(Sxx.shape)
+
+    low_sound = numpy_to_audio_segment(mono_lowpassed, sound)
+    low_sound.export('example/export.wav', format='wav')
+
+    # plot_spectrum(t, f, Sxx)
+
+    maxes = np.argmax(Sxx, axis=0)
+
+    plot_audio_samples(mono_lowpassed, sound.frame_rate)
+
+    for m in maxes:
+        freq = f[m]
+        print(pitch(m), f'{freq} hz')
+
+    # avg = np.mean(np.abs(mono_lowpassed), axis=0)
+    # print(avg)
+
+    # maxes[Sxx < avg] = 0
+
+    # plt.plot(t, maxes)
+    # plt.show()
+
+    # print(str(maxes))
+
 
 
 if __name__ == '__main__':
