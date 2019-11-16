@@ -6,12 +6,8 @@ from audio_helpers import *
 from plot_audio import *
 
 
-
 # https://americodias.com/docs/python/audio_python.md
 # https://ipython-books.github.io/116-applying-digital-filters-to-speech-sounds/
-
-
-
 
 
 def main(config):
@@ -24,50 +20,44 @@ def main(config):
 
     samples = audio_segment_to_numpy(sound)
 
-    if config['plot']:
-        plot_audio_samples(samples, sound.frame_rate)
-        print(f'Total samples: {samples.shape[0]}')
-        print(f'Min value = {np.min(samples)}, max value = {np.max(samples)}')
-
     bass_high_fs = 500.0  # sample rate, Hz
     bass_low_fs = 16.0
     bass_low_order = 6
-    cutoff = 3.667
+    cutoff = 1.667
+
+    avg_window_size = 1000
 
     mono_lowpassed = butter_lowpass_filter(samples, cutoff, bass_high_fs, bass_low_order)
 
-    f, t, Sxx = spectrogram(mono_lowpassed, sound.frame_rate, nfft=5000)
+    freqs, times, Sxx = spectrogram(mono_lowpassed, sound.frame_rate, nfft=5000)
 
-    freq_slice = np.where((f >= bass_low_fs) & (f <= bass_high_fs))
+    freq_slice = np.where((freqs >= bass_low_fs) & (freqs <= bass_high_fs))
 
-    f = f[freq_slice]
+    freqs = freqs[freq_slice]
     Sxx = Sxx[freq_slice, :][0]
-
-    print(f)
-    print(Sxx.shape)
 
     low_sound = numpy_to_audio_segment(mono_lowpassed, sound)
     low_sound.export('example/export.wav', format='wav')
 
-    # plot_spectrum(t, f, Sxx)
+    if config['plot']:
+        plot_audio_samples(mono_lowpassed, sound.frame_rate)
 
     maxes = np.argmax(Sxx, axis=0)
 
-    plot_audio_samples(mono_lowpassed, sound.frame_rate)
+    amp = amplitude(mono_lowpassed, avg_window_size)
+    avg_value = np.mean(amp, axis=0)
+    print(f'Avg value: {avg_value:.5f}')
 
-    for m in maxes:
-        freq = f[m]
-        print(pitch(m), f'{freq} hz')
-
-    # avg = np.mean(np.abs(mono_lowpassed), axis=0)
-    # print(avg)
+    for t, freq_index_of_max in zip(times, maxes):
+        f = freqs[freq_index_of_max]
+        frame_index = int(t * sound.frame_rate)
+        current_amplitude = amp[frame_index]
+        if current_amplitude > avg_value:
+            print(f't = {t:.2f} sec ; note = {pitch(f)} F = {f:.1f} hz')
+        else:
+            print(f't = {t:.2f} sec silent')
 
     # maxes[Sxx < avg] = 0
-
-    # plt.plot(t, maxes)
-    # plt.show()
-
-    # print(str(maxes))
 
 
 

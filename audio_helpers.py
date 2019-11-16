@@ -1,5 +1,5 @@
 from pydub import AudioSegment
-from scipy.signal import spectrogram, lfilter, freqz, butter
+from scipy.signal import spectrogram, lfilter, freqz, butter, hilbert
 import numpy as np
 from math import log2, pow
 
@@ -59,3 +59,35 @@ def pitch(freq, A4=440):
     octave = h // 12
     n = h % 12
     return NOTE_NAMES[n] + str(octave)
+
+
+def moving_average(a, n=3) :
+    ret = np.cumsum(a, dtype=float)
+    ret[n:] = ret[n:] - ret[:-n]
+    return ret[n - 1:] / n
+
+
+def pad_signal(signal: np.ndarray, lenght_needed, value=0.0, front=True):
+    if signal.shape[0] < lenght_needed:
+        padding = np.ones((lenght_needed - signal.shape[0],), dtype=signal.dtype) * value
+        return np.append(padding, signal) if front else np.append(signal, padding)
+    else:
+        return signal
+
+
+def amplitude(signal: np.ndarray, window_size):
+
+    # analytic_signal = hilbert(signal)
+    # amplitude_envelope = np.abs(analytic_signal)
+    #
+    # instantaneous_phase = np.unwrap(np.angle(analytic_signal))
+    # instantaneous_frequency = (np.diff(instantaneous_phase) / (2.0 * np.pi) * frame_rate)
+    # return pad_signal(amplitude_envelope, l), pad_signal(np.abs(instantaneous_frequency), l)
+
+    return pad_signal(moving_average(np.abs(signal), window_size), signal.shape[0])
+
+
+def set_to_zero_when_clipping(signal: np.ndarray, max_value):
+    signal = signal.copy()
+    signal[np.abs(signal) > max_value] = 0
+    return signal
