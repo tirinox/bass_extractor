@@ -87,6 +87,21 @@ def set_to_zero_when_clipping(signal: np.ndarray, max_value):
     return signal
 
 
+def extract_notes(time, freqs, confidence, activation, min_confidence, a4):
+    prev_note = None
+    x = 0
+    height = activation.shape[1]
+    for t, f, c in zip(time, freqs, confidence):
+        if c > min_confidence:
+            note = pitch(f, a4)
+            if note != prev_note:
+                y = height - np.argmax(activation[x]) - 20 - 20 * (x % 4)
+                yield x, y, note
+                prev_note = note
+
+        x += 1
+
+
 def pitch_predictor(signal: np.ndarray, sample_rate, model='full', step_size=10, debug_cache=False):
     def _predict():
         time, frequency, confidence, activation = crepe.predict(signal,

@@ -40,25 +40,20 @@ def plot_spectrum(t, f, Sxx, lines=False):
     plt.show()
 
 
-def plot_crepe_activation(time, freqs, confidence, activation, a4=440, min_confidence=0.8):
+def plot_crepe_activation(activation, notes_xy, duration):
     salience = np.flip(activation, axis=1)
     inferno = matplotlib.cm.get_cmap('inferno')
     image = inferno(salience.transpose())
 
     plt.imshow(image)
 
-    prev_note = None
-    x = 0
-    height = image.shape[0]
-    for t, f, c in zip(time, freqs, confidence):
-        if c > min_confidence:
-            note = pitch(f, a4)
-            if note != prev_note:
-                y = height - np.argmax(activation[x]) - 20 - 20 * (x % 4)
-                plt.text(x, y, note, fontsize=8, color='white')
-                prev_note = note
-        else:
-            prev_note = None
-        x += 1
+    ticks = np.linspace(0, duration, min(100, max(5, int(duration) + 1)))
+    ticks = [f'{t:.2f}' for t in ticks]
 
-    plt.show()
+    plt.gca().set_xticklabels(['', *ticks])
+
+    for x, y, note in notes_xy:
+        plt.text(x, y, note, fontsize=8, color='white')
+
+    plt.yticks([])
+

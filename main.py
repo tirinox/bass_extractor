@@ -22,25 +22,27 @@ def main(config):
 
     mono_lowpassed = butter_lowpass_filter(samples, cutoff, bass_high_fs, bass_low_order)
 
-    if config['plot']:
+    show = config['plot']
+    if show:
         plot_audio_samples(mono_lowpassed, sound.frame_rate)
 
-    time, frequency, confidence, activation = pitch_predictor(mono_lowpassed, sound.frame_rate, debug_cache=False)
-
-    # notes = []
-    # for t, f, c, _ in zip(time, frequency, confidence, activation):
-    #     if c > 0.6:
-    #         note = pitch(f)
-    #         print(f'T = {t:.2f} sec; F = {f:.2f}, note = {note}')
-    #         if not notes or notes[-1] != note:
-    #             notes.append(note)
-    # print(notes)
-    # output = config['output']
+    time, frequency, confidence, activation = pitch_predictor(mono_lowpassed,
+                                                              sound.frame_rate,
+                                                              debug_cache=config['debug-cache'])
+    output = config['output']
 
     min_confidence = float(config['confidence'])
     a4_freq = float(config['a4'])
 
-    plot_crepe_activation(time, frequency, confidence, activation, a4_freq, min_confidence)
+    notes = extract_notes(time, frequency, confidence, activation, min_confidence, a4_freq)
+
+    plot_crepe_activation(activation, notes, sound.duration_seconds)
+
+    if output:
+        plt.savefig(output, bbox_inches='tight', pad_inches=0.5)
+
+    if show:
+        plt.show()
 
 
 if __name__ == '__main__':
@@ -53,6 +55,7 @@ if __name__ == '__main__':
         ArgParameter('confidence', False, 0.8),
         ArgParameter('a4', False, 440),
         ArgParameter('output', False),
+        ArgFlag('debug-cache'),
         ArgFlag('plot')
     ])
     main(config)
