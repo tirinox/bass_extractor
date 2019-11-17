@@ -55,12 +55,35 @@ def butter_lowpass_filter(data, cutoff, fs, order=5):
 NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
 
-def pitch(freq, A4=440):
-    C0 = A4 * pow(2, -4.75)
-    h = round(12 * log2(freq / C0))
+def c0_from_a4(a4=440):
+    return a4 * pow(2, -4.75)
+
+
+def note_name_from_octave_and_index(octave, n):
+    return NOTE_NAMES[n] + str(octave)
+
+
+def find_closest_pitch(freq, a4=440):
+    c0 = c0_from_a4(a4)
+    h = round(12 * log2(freq / c0))
     octave = h // 12
     n = h % 12
-    return NOTE_NAMES[n] + str(octave)
+    return note_name_from_octave_and_index(octave, n)
+
+
+def notes_dict(a4=440, octaves=5):
+    c0 = c0_from_a4(a4)
+
+    name_to_freq = {}
+
+    for octave in range(octaves):
+        c_n = 2 ** octave * c0
+        c_n1 = 2 * c_n
+        for note_index in range(12):
+            f = (c_n1 - c_n) / 12.0 * note_index + c_n
+            name_to_freq[note_name_from_octave_and_index(octave, note_index)] = round(f, 2)
+
+    return name_to_freq
 
 
 def moving_average(a, n=3):
@@ -93,7 +116,7 @@ def extract_notes(time, freqs, confidence, activation, min_confidence, a4):
     height = activation.shape[1]
     for t, f, c in zip(time, freqs, confidence):
         if c > min_confidence:
-            note = pitch(f, a4)
+            note = find_closest_pitch(f, a4)
             if note != prev_note:
                 y = height - np.argmax(activation[x]) - 20 - 20 * (x % 4)
                 yield x, y, note
@@ -158,6 +181,6 @@ def my_pitch_predictor(mono_lowpassed, sound: AudioSegment, bass_low_fs, bass_hi
         frame_index = int(t * sound.frame_rate)
         current_amplitude = amp[frame_index]
         if current_amplitude > avg_value:
-            print(f't = {t:.2f} sec ; note = {pitch(f)} F = {f:.1f} hz')
+            print(f't = {t:.2f} sec ; note = {find_closest_pitch(f)} F = {f:.1f} hz')
         else:
             print(f't = {t:.2f} sec silent')

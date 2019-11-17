@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from audio_helpers import amplitude, pitch
+from audio_helpers import amplitude, find_closest_pitch
 import matplotlib.cm
 
 
