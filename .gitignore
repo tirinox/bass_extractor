@@ -1,4 +1,6 @@
-example/
+example/*.wav
+example/*.mp3
+example/*.npy
 .idea/
 
 # Byte-compiled / optimized / DLL files

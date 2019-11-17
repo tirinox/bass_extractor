@@ -1,13 +1,9 @@
 import sys
 from arg_parser import ArgParameter, ArgFlag, arg_parser
 from pydub import AudioSegment, playback
-import numpy as np
 from audio_helpers import *
 from plot_audio import *
 
-
-# https://americodias.com/docs/python/audio_python.md
-# https://ipython-books.github.io/116-applying-digital-filters-to-speech-sounds/
 
 
 def main(config):
@@ -20,45 +16,31 @@ def main(config):
 
     samples = audio_segment_to_numpy(sound)
 
-    bass_high_fs = 500.0  # sample rate, Hz
-    bass_low_fs = 16.0
+    bass_high_fs = float(config['cutoff-high'])  # Hz
     bass_low_order = 6
-    cutoff = 1.667
-
-    avg_window_size = 1000
+    cutoff = float(config['cutoff-factor'])
 
     mono_lowpassed = butter_lowpass_filter(samples, cutoff, bass_high_fs, bass_low_order)
-
-    freqs, times, Sxx = spectrogram(mono_lowpassed, sound.frame_rate, nfft=5000)
-
-    freq_slice = np.where((freqs >= bass_low_fs) & (freqs <= bass_high_fs))
-
-    freqs = freqs[freq_slice]
-    Sxx = Sxx[freq_slice, :][0]
-
-    low_sound = numpy_to_audio_segment(mono_lowpassed, sound)
-    low_sound.export('example/export.wav', format='wav')
 
     if config['plot']:
         plot_audio_samples(mono_lowpassed, sound.frame_rate)
 
-    maxes = np.argmax(Sxx, axis=0)
+    time, frequency, confidence, activation = pitch_predictor(mono_lowpassed, sound.frame_rate, debug_cache=False)
 
-    amp = amplitude(mono_lowpassed, avg_window_size)
-    avg_value = np.mean(amp, axis=0)
-    print(f'Avg value: {avg_value:.5f}')
+    # notes = []
+    # for t, f, c, _ in zip(time, frequency, confidence, activation):
+    #     if c > 0.6:
+    #         note = pitch(f)
+    #         print(f'T = {t:.2f} sec; F = {f:.2f}, note = {note}')
+    #         if not notes or notes[-1] != note:
+    #             notes.append(note)
+    # print(notes)
+    # output = config['output']
 
-    for t, freq_index_of_max in zip(times, maxes):
-        f = freqs[freq_index_of_max]
-        frame_index = int(t * sound.frame_rate)
-        current_amplitude = amp[frame_index]
-        if current_amplitude > avg_value:
-            print(f't = {t:.2f} sec ; note = {pitch(f)} F = {f:.1f} hz')
-        else:
-            print(f't = {t:.2f} sec silent')
+    min_confidence = float(config['confidence'])
+    a4_freq = float(config['a4'])
 
-    # maxes[Sxx < avg] = 0
-
+    plot_crepe_activation(time, frequency, confidence, activation, a4_freq, min_confidence)
 
 
 if __name__ == '__main__':
@@ -66,6 +48,11 @@ if __name__ == '__main__':
         ArgParameter('input', True),
         ArgParameter('start', -1),
         ArgParameter('end', -1),
+        ArgParameter('cutoff-high', False, 520),
+        ArgParameter('cutoff-factor', False, 1.6),
+        ArgParameter('confidence', False, 0.8),
+        ArgParameter('a4', False, 440),
+        ArgParameter('output', False),
         ArgFlag('plot')
     ])
     main(config)

@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from audio_helpers import amplitude, set_to_zero_when_clipping
+from audio_helpers import amplitude, pitch
+import matplotlib.cm
 
 
 def plot_audio_samples(samples, sample_rate, t_start=None, t_end=None, title='Audio'):
@@ -36,4 +37,28 @@ def plot_spectrum(t, f, Sxx, lines=False):
             plt.axhline(one_f)
     plt.ylabel('Frequency [Hz]')
     plt.xlabel('Time [sec]')
+    plt.show()
+
+
+def plot_crepe_activation(time, freqs, confidence, activation, a4=440, min_confidence=0.8):
+    salience = np.flip(activation, axis=1)
+    inferno = matplotlib.cm.get_cmap('inferno')
+    image = inferno(salience.transpose())
+
+    plt.imshow(image)
+
+    prev_note = None
+    x = 0
+    height = image.shape[0]
+    for t, f, c in zip(time, freqs, confidence):
+        if c > min_confidence:
+            note = pitch(f, a4)
+            if note != prev_note:
+                y = height - np.argmax(activation[x]) - 20 - 20 * (x % 4)
+                plt.text(x, y, note, fontsize=8, color='white')
+                prev_note = note
+        else:
+            prev_note = None
+        x += 1
+
     plt.show()

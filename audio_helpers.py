@@ -1,7 +1,9 @@
 from pydub import AudioSegment
-from scipy.signal import spectrogram, lfilter, freqz, butter, hilbert
+from scipy.signal import lfilter, butter, spectrogram
 import numpy as np
 from math import log2, pow
+import crepe
+import os
 
 
 def audio_segment_to_numpy(seg: AudioSegment):
@@ -61,7 +63,7 @@ def pitch(freq, A4=440):
     return NOTE_NAMES[n] + str(octave)
 
 
-def moving_average(a, n=3) :
+def moving_average(a, n=3):
     ret = np.cumsum(a, dtype=float)
     ret[n:] = ret[n:] - ret[:-n]
     return ret[n - 1:] / n
@@ -76,14 +78,6 @@ def pad_signal(signal: np.ndarray, lenght_needed, value=0.0, front=True):
 
 
 def amplitude(signal: np.ndarray, window_size):
-
-    # analytic_signal = hilbert(signal)
-    # amplitude_envelope = np.abs(analytic_signal)
-    #
-    # instantaneous_phase = np.unwrap(np.angle(analytic_signal))
-    # instantaneous_frequency = (np.diff(instantaneous_phase) / (2.0 * np.pi) * frame_rate)
-    # return pad_signal(amplitude_envelope, l), pad_signal(np.abs(instantaneous_frequency), l)
-
     return pad_signal(moving_average(np.abs(signal), window_size), signal.shape[0])
 
 
@@ -91,3 +85,64 @@ def set_to_zero_when_clipping(signal: np.ndarray, max_value):
     signal = signal.copy()
     signal[np.abs(signal) > max_value] = 0
     return signal
+
+
+def pitch_predictor(signal: np.ndarray, sample_rate, model='full', step_size=10, debug_cache=False):
+    def _predict():
+        time, frequency, confidence, activation = crepe.predict(signal,
+                                                                sample_rate,
+                                                                viterbi=True,
+                                                                model_capacity=model,
+                                                                step_size=step_size)
+        return time, frequency, confidence, activation
+
+    predicted = False
+
+    def _cache_name(name):
+        return os.path.join(f'example/_cache_{name}.npy')
+
+    names = 'time', 'frequency', 'confidence', 'activation'
+
+    if debug_cache:
+        if os.path.exists(_cache_name('time')):
+            print('Prediction loaded from cache.')
+            component_tuple = [np.load(_cache_name(name)) for name in names]
+            predicted = True
+
+    if not predicted:
+        component_tuple = _predict()
+
+    if debug_cache:
+        for n, v in zip(names, component_tuple):
+            np.save(_cache_name(n), v)
+
+        print('Prediction saved cache.')
+
+    return component_tuple
+
+
+def my_pitch_predictor(mono_lowpassed, sound: AudioSegment, bass_low_fs, bass_high_fs, avg_window_size):
+    freqs, times, Sxx = spectrogram(mono_lowpassed, sound.frame_rate, nfft=5000)
+
+    freq_slice = np.where((freqs >= bass_low_fs) & (freqs <= bass_high_fs))
+
+    freqs = freqs[freq_slice]
+    Sxx = Sxx[freq_slice, :][0]
+
+    low_sound = numpy_to_audio_segment(mono_lowpassed, sound)
+    low_sound.export('example/export.wav', format='wav')
+
+    maxes = np.argmax(Sxx, axis=0)
+
+    amp = amplitude(mono_lowpassed, avg_window_size)
+    avg_value = np.mean(amp, axis=0)
+    print(f'Avg value: {avg_value:.5f}')
+
+    for t, freq_index_of_max in zip(times, maxes):
+        f = freqs[freq_index_of_max]
+        frame_index = int(t * sound.frame_rate)
+        current_amplitude = amp[frame_index]
+        if current_amplitude > avg_value:
+            print(f't = {t:.2f} sec ; note = {pitch(f)} F = {f:.1f} hz')
+        else:
+            print(f't = {t:.2f} sec silent')
