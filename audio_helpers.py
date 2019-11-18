@@ -113,12 +113,12 @@ def set_to_zero_when_clipping(signal: np.ndarray, max_value):
 def extract_notes(time, freqs, confidence, activation, min_confidence, a4):
     prev_note = None
     x = 0
-    height = activation.shape[1]
+    height = activation.shape[0]
     for t, f, c in zip(time, freqs, confidence):
         if c > min_confidence:
             note = find_closest_pitch(f, a4)
             if note != prev_note:
-                y = height - np.argmax(activation[x]) - 20 - 20 * (x % 4)
+                y = height - np.argmax(activation[x], axis=0) - 50
                 yield x, y, note
                 prev_note = note
 

@@ -34,9 +34,16 @@ def main(config):
     min_confidence = float(config['confidence'])
     a4_freq = float(config['a4'])
 
-    notes = extract_notes(time, frequency, confidence, activation, min_confidence, a4_freq)
+    add_note_lines = config['note-lines']
 
-    plot_crepe_activation(activation, notes, sound.duration_seconds)
+    notes = list(extract_notes(time, frequency, confidence, activation, min_confidence, a4_freq))
+
+    if add_note_lines:
+        note_lines = get_note_lines_from_crepe_activation(notes, frequency, activation, a4_freq)
+    else:
+        note_lines = None
+
+    plot_crepe_activation(activation, notes, sound.duration_seconds, note_lines)
 
     if output:
         plt.savefig(output, bbox_inches='tight', pad_inches=0.5)
@@ -56,6 +63,7 @@ if __name__ == '__main__':
         ArgParameter('a4', False, 440),
         ArgParameter('output', False),
         ArgFlag('debug-cache'),
-        ArgFlag('plot')
+        ArgFlag('plot'),
+        ArgFlag('note-lines', True)
     ])
     main(config)
