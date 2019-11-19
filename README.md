@@ -10,7 +10,11 @@ source venv/bin/activatee
 pip install -r requirements.txt
 ```
 
+Please be patient, because it requires TensorFlow for doing neural network magic.
+
 ## Usage:
+
+Note: I don't provide MP3, it can be illegal. Make sure you download your music legally!
 
 Example for "Vlastur - Cycladic Dub":
 

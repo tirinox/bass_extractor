@@ -1,9 +1,7 @@
 import sys
 from arg_parser import ArgParameter, ArgFlag, arg_parser
-from pydub import AudioSegment, playback
 from audio_helpers import *
 from plot_audio import *
-
 
 
 def main(config):
