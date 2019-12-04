@@ -27,6 +27,9 @@ def main(config):
     time, frequency, confidence, activation = pitch_predictor(mono_lowpassed,
                                                               sound.frame_rate,
                                                               debug_cache=config['debug-cache'])
+
+    activation = activation[:, :100]
+
     output = config['output']
 
     min_confidence = float(config['confidence'])
@@ -37,11 +40,11 @@ def main(config):
     notes = list(extract_notes(time, frequency, confidence, activation, min_confidence, a4_freq))
 
     if add_note_lines:
-        note_lines = get_note_lines_from_crepe_activation(notes, frequency, activation, a4_freq)
+        note_lines = get_note_lines_from_crepe_activation(notes, frequency, a4_freq)
     else:
         note_lines = None
 
-    plot_crepe_activation(activation, notes, sound.duration_seconds, note_lines)
+    plot_crepe_activation(activation, notes, sound.duration_seconds, note_lines, frequency, confidence, min_confidence)
 
     if output:
         plt.savefig(output, bbox_inches='tight', pad_inches=0.5)
@@ -57,7 +60,7 @@ if __name__ == '__main__':
         ArgParameter('end', -1),
         ArgParameter('cutoff-high', False, 520),
         ArgParameter('cutoff-factor', False, 1.6),
-        ArgParameter('confidence', False, 0.8),
+        ArgParameter('confidence', False, 0.65),
         ArgParameter('a4', False, 440),
         ArgParameter('output', False),
         ArgFlag('debug-cache'),

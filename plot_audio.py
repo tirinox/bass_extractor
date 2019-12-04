@@ -2,7 +2,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from audio_helpers import amplitude, notes_dict
 import matplotlib.cm
-from scipy.cluster.vq import vq, kmeans, whiten
 
 
 def plot_audio_samples(samples, sample_rate, t_start=None, t_end=None, title='Audio'):
@@ -41,48 +40,15 @@ def plot_spectrum(t, f, Sxx, lines=False):
     plt.show()
 
 
-def get_note_lines_from_crepe_activation(notes, frequency, activation, a4_freq=440):
-    """
-    Makes a list of lines
-    :param notes: [(x, y, _)] from extract_notes
-    :param frequency_list: possible frequencies on the map from crepe
-    :param a4_freq: A4 note frequency (default: 440 Hz)
-    :return: dict ({notename: 0..359})
-    """
+def get_note_lines_from_crepe_activation(notes, frequency, a4_freq=440):
     name_to_freq = notes_dict(a4_freq, 6)
     used_notes = {name for _, _, name in notes}
     used_notes_freq_map = {n: f for n, f in name_to_freq.items() if n in used_notes}
-
-    vertical_indices = np.argmax(activation, axis=1)
-
-    # freq_to_index = {}
-    # for f, index in zip(frequency, vertical_indices):
-    #     if index != 0:
-    #         freq_to_index[round(f, 2)] = index
-
-    height, width, *_ = activation.shape
-
-    f_index_pairs = np.column_stack((frequency, vertical_indices))
-
-    codebook, distortion = kmeans(f_index_pairs, len(used_notes))
-
-    print('codebook:')
-    print(codebook)
-
-    print('distortion:')
-    print(distortion)
-
-
-    f_indices = {}
-    # for name, freq in used_notes_freq_map.items():
-    #     best_freq = min(freq_to_index.keys(), key=lambda x: abs(x - freq))
-    #     f_indices[name] = height - freq_to_index[best_freq] - 1
-
-    return f_indices
+    return used_notes_freq_map
 
 
 
-def plot_crepe_activation(activation, notes_xy, duration, lines_for_notes):
+def plot_crepe_activation(activation, notes_xy, duration, lines_for_notes, frequencies, confidence, min_confidence):
     salience = np.flip(activation, axis=1)
     inferno = matplotlib.cm.get_cmap('inferno')
     image = inferno(salience.transpose())
@@ -100,7 +66,15 @@ def plot_crepe_activation(activation, notes_xy, duration, lines_for_notes):
     for x, y, note in notes_xy:
         plt.text(x, y, note, fontsize=8, color='white')
 
+    if frequencies is not None:
+        f_x = np.arange(0, width)
+        f_y = height - frequencies
+        # f_y[confidence < min_confidence] = 0
+        plt.plot(f_x, f_y)
+
     plt.yticks([])
 
-    # for name, v_ind in lines_for_notes.items():
-    #     plt.axhline(y=v_ind, linestyle='--', color='w')
+    if lines_for_notes is not None:
+        for name, v_ind in lines_for_notes.items():
+            y = height - v_ind
+            plt.axhline(y=y, linestyle='--', color=(1, 1, 1, 0.3))

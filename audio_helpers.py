@@ -118,7 +118,8 @@ def extract_notes(time, freqs, confidence, activation, min_confidence, a4):
         if c > min_confidence:
             note = find_closest_pitch(f, a4)
             if note != prev_note:
-                y = height - np.argmax(activation[x], axis=0) - 50
+                # y = height - np.argmax(activation[x], axis=0)
+                y = f
                 yield x, y, note
                 prev_note = note
 
