@@ -104,5 +104,3 @@ def plot_crepe_activation(activation, notes_xy, duration, lines_for_notes):
 
     # for name, v_ind in lines_for_notes.items():
     #     plt.axhline(y=v_ind, linestyle='--', color='w')
-
-    print(lines_for_notes)
