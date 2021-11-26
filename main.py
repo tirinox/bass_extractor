@@ -55,16 +55,16 @@ def main(config):
 
 if __name__ == '__main__':
     config = arg_parser(sys.argv[1:], [
-        ArgParameter('input', True),
-        ArgParameter('start', -1),
-        ArgParameter('end', -1),
+        ArgParameter('input', True, ''),
+        ArgParameter('start', False, -1),
+        ArgParameter('end', False, -1),
         ArgParameter('cutoff-high', False, 520),
         ArgParameter('cutoff-factor', False, 1.6),
         ArgParameter('confidence', False, 0.65),
         ArgParameter('a4', False, 440),
-        ArgParameter('output', False),
-        ArgFlag('debug-cache'),
-        ArgFlag('plot'),
+        ArgParameter('output', False, ''),
+        ArgFlag('debug-cache', False),
+        ArgFlag('plot', True),
         ArgFlag('note-lines', True)
     ])
     main(config)
